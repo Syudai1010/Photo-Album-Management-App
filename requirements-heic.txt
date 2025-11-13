@@ -1,0 +1,16 @@
+# HEIC画像対応用のオプション依存パッケージ
+#
+# 推奨: pillow-heif（インストールが簡単、Windows対応）
+pillow-heif>=0.13.0
+#
+# または pyheif（古い方法、ビルドツールが必要）
+# 注意: pyheifはビルドにMicrosoft Visual C++ 14.0以上が必要です
+# インストール前に以下をインストールしてください:
+# https://visualstudio.microsoft.com/visual-cpp-build-tools/
+# または
+# https://aka.ms/vs/17/release/vc_redist.x64.exe
+#
+# pyheif>=0.7.1
+#
+# インストール方法:
+# pip install -r requirements-heic.txt
