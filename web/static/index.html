@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フォトブック管理 - Web版</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- ヘッダー -->
+        <header class="app-header">
+            <h1>📷 フォトブック管理 - 画像リネームツール (Web版)</h1>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <div class="main-content">
+            <!-- 左ペイン: サムネイルグリッド -->
+            <div class="left-pane">
+                <div class="pane-header">
+                    <h2>画像フォルダ</h2>
+                    <button id="openFolderBtn" class="btn btn-primary">📁 フォルダを開く</button>
+                </div>
+
+                <div class="folder-path" id="folderPath">フォルダが選択されていません</div>
+
+                <div class="action-row">
+                    <button id="addToBasketBtn" class="btn btn-success">➕ 選択をバスケットに追加</button>
+                </div>
+
+                <div class="help-text">Ctrl+クリックで複数選択 → ボタンで一括追加 → 数字キーでラベル適用</div>
+
+                <!-- ソートコントロール -->
+                <div class="sort-control">
+                    <label>並び替え:</label>
+                    <select id="sortMode">
+                        <option value="exif_asc">撮影日時（昇順）</option>
+                        <option value="exif_desc">撮影日時（降順）</option>
+                        <option value="name">ファイル名</option>
+                    </select>
+                </div>
+
+                <!-- サムネイルグリッド -->
+                <div class="thumbnail-grid" id="thumbnailGrid">
+                    <!-- サムネイルが動的に追加されます -->
+                </div>
+            </div>
+
+            <!-- 中央ペイン: 選択バスケット -->
+            <div class="center-pane">
+                <div class="pane-header">
+                    <h2>選択バスケット（選んだ順）</h2>
+                </div>
+
+                <!-- バスケットリスト -->
+                <div class="basket-list" id="basketList">
+                    <!-- バスケットアイテムが動的に追加されます -->
+                </div>
+
+                <!-- コントロールボタン -->
+                <div class="basket-controls">
+                    <button id="moveUpBtn" class="btn btn-sm">▲ 上へ</button>
+                    <button id="moveDownBtn" class="btn btn-sm">▼ 下へ</button>
+                    <button id="removeBtn" class="btn btn-sm">🗑️ 削除</button>
+                    <button id="clearBasketBtn" class="btn btn-sm">🗑️ すべてクリア</button>
+                </div>
+
+                <!-- ラベル一括適用 -->
+                <div class="label-apply-section">
+                    <label>ラベル一括適用:</label>
+                    <input type="text" id="labelInput" placeholder="全景">
+                    <button id="applyLabelBtn" class="btn btn-sm btn-primary">適用</button>
+                </div>
+
+                <!-- カウント表示 -->
+                <div class="count-label" id="countLabel">選択数: 0</div>
+            </div>
+
+            <!-- 右ペイン: 操作とプレビュー -->
+            <div class="right-pane">
+                <div class="pane-header">
+                    <h2>リネーム設定</h2>
+                </div>
+
+                <!-- テンプレート入力 -->
+                <div class="template-section">
+                    <label>テンプレート:</label>
+                    <input type="text" id="templateInput" value="V-{seq:1}_{label}" class="template-input">
+                    <div class="help-text">変数: {group}=グループ番号, {label}=ラベル, {seq:003}=連番（ゼロ埋め3桁）</div>
+                </div>
+
+                <!-- ラベルプリセット -->
+                <div class="preset-section">
+                    <label>ラベルプリセット:</label>
+                    <select id="presetCombo">
+                        <!-- プリセットが動的に追加されます -->
+                    </select>
+                    <button id="applyPresetBtn" class="btn btn-sm">選択項目に適用</button>
+                </div>
+
+                <div class="help-text">ショートカット: 数字キー 1-9 でラベル適用、Deleteで選択クリア</div>
+
+                <!-- アクションボタン -->
+                <div class="action-buttons">
+                    <button id="previewBtn" class="btn btn-success">👁️ プレビュー</button>
+                    <button id="executeBtn" class="btn btn-danger" disabled>⚡ 実行</button>
+                    <button id="undoBtn" class="btn btn-secondary">↩️ Undo</button>
+                </div>
+
+                <!-- JSON出力ボタン -->
+                <div class="json-export-section">
+                    <button id="exportJsonBtn" class="btn btn-info">📄 JSON出力</button>
+                </div>
+
+                <!-- プレビューテーブル -->
+                <div class="preview-section">
+                    <h3>プレビュー</h3>
+                    <div class="preview-table-wrapper">
+                        <table id="previewTable" class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>旧ファイル名</th>
+                                    <th>新ファイル名</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- プレビュー行が動的に追加されます -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ログビュー -->
+                <div class="log-section">
+                    <h3>ログ</h3>
+                    <div id="logView" class="log-view">
+                        <!-- ログメッセージが動的に追加されます -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- フォルダ選択モーダル -->
+    <div id="folderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>フォルダを選択</h2>
+                <button class="close-btn" id="closeFolderModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 現在のパス表示 -->
+                <div class="current-path">
+                    <label>現在のパス:</label>
+                    <input type="text" id="currentPath" readonly>
+                </div>
+
+                <!-- ドライブ/ディレクトリ選択 -->
+                <div class="drives-section">
+                    <h3>ドライブ/よく使う場所</h3>
+                    <div id="drivesList" class="drives-list">
+                        <!-- ドライブが動的に追加されます -->
+                    </div>
+                </div>
+
+                <!-- サブディレクトリ一覧 -->
+                <div class="subdirs-section">
+                    <h3>サブフォルダ</h3>
+                    <div id="subdirsList" class="subdirs-list">
+                        <!-- サブディレクトリが動的に追加されます -->
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button id="selectFolderBtn" class="btn btn-primary">このフォルダを選択</button>
+                    <button id="cancelFolderBtn" class="btn btn-secondary">キャンセル</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

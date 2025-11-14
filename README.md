@@ -18,14 +18,30 @@
 - **選択的ラベル適用**: バスケット内で選択したアイテムのみにラベルを適用
 - **JSON出力**: 画像とラベルの関係をJSON形式でエクスポート
 
-## 動作環境
+## 利用可能なバージョン
+
+このアプリケーションは2つのバージョンで提供されています：
+
+### 🖥️ デスクトップ版（このREADME）
+- PySide6ベースのネイティブGUIアプリケーション
+- 起動: `python main.py`
+
+### 🌐 Web版（NEW!）
+- ブラウザで動作するWebアプリケーション
+- デスクトップ版と**完全に同じ機能**
+- 起動: `start_web.bat` (Windows) / `start_web.sh` (Mac/Linux)
+- 詳細は [web/README.md](web/README.md) を参照
+
+---
+
+## 動作環境（デスクトップ版）
 
 - Python 3.10以上
 - PySide6
 - Pillow（画像処理）
 - pillow-heif（HEIC対応、オプション）
 
-## インストール
+## インストール（デスクトップ版）
 
 ```bash
 # 基本的な依存関係をインストール
@@ -115,21 +131,33 @@ python main.py
 ## プロジェクト構造
 
 ```
-main2/
-├── main.py                    # メインアプリケーション
+Photo-Album-Management-App/
+├── main.py                    # デスクトップ版メインアプリケーション
 ├── requirements.txt           # Python依存関係
 ├── requirements-heic.txt      # HEIC対応（オプション）
 ├── README.md                  # このファイル
-├── widgets/                   # UIウィジェット
+├── start_web.bat              # Web版起動スクリプト（Windows）
+├── start_web.sh               # Web版起動スクリプト（Mac/Linux）
+├── widgets/                   # UIウィジェット（デスクトップ版）
 │   ├── thumbnail_grid.py      # サムネイルグリッド
 │   ├── selection_bucket.py    # 選択バスケット
 │   └── label_preset_dialog.py # ラベル設定ダイアログ
-├── services/                  # ビジネスロジック
+├── services/                  # ビジネスロジック（共通）
 │   ├── thumbnail_cache.py     # サムネイルキャッシュ
 │   ├── exif.py                # EXIF情報読み取り
 │   └── renamer.py             # リネーム処理
-└── utils/                     # ユーティリティ
-    └── pathsafe.py            # パス操作ヘルパー
+├── utils/                     # ユーティリティ（共通）
+│   └── pathsafe.py            # パス操作ヘルパー
+└── web/                       # Web版（NEW!）
+    ├── server.py              # Flaskサーバー
+    ├── requirements-web.txt   # Web版の依存関係
+    ├── README.md              # Web版のREADME
+    └── static/
+        ├── index.html         # メインHTML
+        ├── css/
+        │   └── style.css      # スタイルシート
+        └── js/
+            └── app.js         # JavaScriptアプリケーション
 ```
 
 ## トラブルシューティング
