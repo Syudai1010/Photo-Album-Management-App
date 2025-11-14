@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フォトブック管理 - HTML版</title>
+
+    <!-- EXIF.js ライブラリ（CDN） -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
+
+    <style>
+        /* リセットとベーススタイル */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* アプリコンテナ */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ヘッダー */
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .app-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        /* メインコンテンツ */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        /* ペイン共通スタイル */
+        .left-pane, .center-pane, .right-pane {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .left-pane {
+            flex: 2;
+        }
+
+        .center-pane {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .right-pane {
+            flex: 2;
+        }
+
+        /* ペインヘッダー */
+        .pane-header {
+            padding: 15px 20px;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pane-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* ボタンスタイル */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: #FF5722;
+            color: white;
+        }
+
+        .btn-danger:disabled {
+            background-color: #BDBDBD;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background-color: #9E9E9E;
+            color: white;
+        }
+
+        .btn-info {
+            background-color: #673AB7;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* フォルダパス */
+        .folder-path {
+            padding: 10px 20px;
+            color: #666;
+            font-size: 11px;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        /* アクション行 */
+        .action-row {
+            padding: 10px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        /* ヘルプテキスト */
+        .help-text {
+            padding: 5px 20px;
+            color: #666;
+            font-size: 10px;
+            font-style: italic;
+        }
+
+        /* ソートコントロール */
+        .sort-control {
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .sort-control label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .sort-control select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* サムネイルグリッド */
+        .thumbnail-grid {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            align-content: start;
+        }
+
+        /* サムネイルアイテム */
+        .thumbnail-item {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .thumbnail-item:hover {
+            border-color: #2196F3;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+        }
+
+        .thumbnail-item.selected {
+            border-color: #2196F3;
+            background-color: #E3F2FD;
+            border-width: 3px;
+        }
+
+        .thumbnail-image {
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .thumbnail-name {
+            margin-top: 8px;
+            font-size: 11px;
+            word-wrap: break-word;
+            text-align: center;
+        }
+
+        .thumbnail-datetime {
+            margin-top: 4px;
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+        }
+
+        /* バスケットリスト */
+        .basket-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .basket-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            background: white;
+        }
+
+        .basket-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .basket-item.selected {
+            background-color: #E3F2FD;
+            border-color: #2196F3;
+        }
+
+        .basket-item-text {
+            font-size: 13px;
+        }
+
+        /* バスケットコントロール */
+        .basket-controls {
+            padding: 10px;
+            display: flex;
+            gap: 5px;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .basket-controls .btn {
+            flex: 1;
+        }
+
+        /* ラベル適用セクション */
+        .label-apply-section {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .label-apply-section label {
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .label-apply-section input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* カウントラベル */
+        .count-label {
+            padding: 10px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* テンプレートセクション */
+        .template-section {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .template-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .template-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* プリセットセクション */
+        .preset-section {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .preset-section label {
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .preset-section select {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* アクションボタン */
+        .action-buttons {
+            padding: 15px 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-buttons .btn {
+            flex: 1;
+        }
+
+        /* JSON出力セクション */
+        .json-export-section {
+            padding: 10px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        /* プレビューセクション */
+        .preview-section {
+            padding: 15px 20px;
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .preview-table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .preview-table thead {
+            background-color: #f5f5f5;
+            position: sticky;
+            top: 0;
+        }
+
+        .preview-table th {
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .preview-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .preview-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .preview-table .warning {
+            background-color: #FFEB3B;
+        }
+
+        .preview-table .success {
+            background-color: #C8E6C9;
+        }
+
+        /* ログセクション */
+        .log-section {
+            padding: 15px 20px;
+        }
+
+        .log-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .log-view {
+            height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        .log-message {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        .log-message.error {
+            color: #D32F2F;
+            font-weight: 600;
+        }
+
+        .log-message.warning {
+            color: #F57C00;
+        }
+
+        .log-message.info {
+            color: #333;
+        }
+
+        /* スクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* ローディング表示 */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* 隠しファイル入力 */
+        #folderInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- ヘッダー -->
+        <header class="app-header">
+            <h1>📷 フォトブック管理 - 画像リネームツール (HTML版)</h1>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <div class="main-content">
+            <!-- 左ペイン: サムネイルグリッド -->
+            <div class="left-pane">
+                <div class="pane-header">
+                    <h2>画像フォルダ</h2>
+                    <button id="openFolderBtn" class="btn btn-primary">📁 フォルダを開く</button>
+                </div>
+
+                <div class="folder-path" id="folderPath">フォルダが選択されていません</div>
+
+                <div class="action-row">
+                    <button id="addToBasketBtn" class="btn btn-success">➕ 選択をバスケットに追加</button>
+                </div>
+
+                <div class="help-text">Ctrl+クリックで複数選択 → ボタンで一括追加 → 数字キーでラベル適用</div>
+
+                <!-- ソートコントロール -->
+                <div class="sort-control">
+                    <label>並び替え:</label>
+                    <select id="sortMode">
+                        <option value="exif_asc">撮影日時（昇順）</option>
+                        <option value="exif_desc">撮影日時（降順）</option>
+                        <option value="name">ファイル名</option>
+                    </select>
+                </div>
+
+                <!-- サムネイルグリッド -->
+                <div class="thumbnail-grid" id="thumbnailGrid">
+                    <div class="loading">フォルダを開くボタンをクリックしてください</div>
+                </div>
+
+                <!-- 隠しファイル入力 -->
+                <input type="file" id="folderInput" webkitdirectory directory multiple />
+            </div>
+
+            <!-- 中央ペイン: 選択バスケット -->
+            <div class="center-pane">
+                <div class="pane-header">
+                    <h2>選択バスケット（選んだ順）</h2>
+                </div>
+
+                <!-- バスケットリスト -->
+                <div class="basket-list" id="basketList">
+                    <div class="loading">バスケットは空です</div>
+                </div>
+
+                <!-- コントロールボタン -->
+                <div class="basket-controls">
+                    <button id="moveUpBtn" class="btn btn-sm">▲ 上へ</button>
+                    <button id="moveDownBtn" class="btn btn-sm">▼ 下へ</button>
+                    <button id="removeBtn" class="btn btn-sm">🗑️ 削除</button>
+                    <button id="clearBasketBtn" class="btn btn-sm">🗑️ すべてクリア</button>
+                </div>
+
+                <!-- ラベル一括適用 -->
+                <div class="label-apply-section">
+                    <label>ラベル一括適用:</label>
+                    <input type="text" id="labelInput" placeholder="全景">
+                    <button id="applyLabelBtn" class="btn btn-sm btn-primary">適用</button>
+                </div>
+
+                <!-- カウント表示 -->
+                <div class="count-label" id="countLabel">選択数: 0</div>
+            </div>
+
+            <!-- 右ペイン: 操作とプレビュー -->
+            <div class="right-pane">
+                <div class="pane-header">
+                    <h2>リネーム設定</h2>
+                </div>
+
+                <!-- テンプレート入力 -->
+                <div class="template-section">
+                    <label>テンプレート:</label>
+                    <input type="text" id="templateInput" value="V-{seq:1}_{label}" class="template-input">
+                    <div class="help-text">変数: {group}=グループ番号, {label}=ラベル, {seq:003}=連番（ゼロ埋め3桁）</div>
+                </div>
+
+                <!-- ラベルプリセット -->
+                <div class="preset-section">
+                    <label>ラベルプリセット:</label>
+                    <select id="presetCombo">
+                        <option value="全景">1. 全景</option>
+                        <option value="接写">2. 接写</option>
+                        <option value="内部">3. 内部</option>
+                        <option value="測定">4. 測定</option>
+                        <option value="詳細">5. 詳細</option>
+                        <option value="外観">6. 外観</option>
+                    </select>
+                    <button id="applyPresetBtn" class="btn btn-sm">選択項目に適用</button>
+                </div>
+
+                <div class="help-text">ショートカット: 数字キー 1-9 でラベル適用、Deleteで選択クリア</div>
+
+                <!-- アクションボタン -->
+                <div class="action-buttons">
+                    <button id="previewBtn" class="btn btn-success">👁️ プレビュー</button>
+                    <button id="executeBtn" class="btn btn-danger">⚡ スクリプト生成</button>
+                </div>
+
+                <!-- JSON出力ボタン -->
+                <div class="json-export-section">
+                    <button id="exportJsonBtn" class="btn btn-info">📄 JSON出力</button>
+                </div>
+
+                <!-- プレビューテーブル -->
+                <div class="preview-section">
+                    <h3>プレビュー</h3>
+                    <div class="preview-table-wrapper">
+                        <table id="previewTable" class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>旧ファイル名</th>
+                                    <th>新ファイル名</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- プレビュー行が動的に追加されます -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ログビュー -->
+                <div class="log-section">
+                    <h3>ログ</h3>
+                    <div id="logView" class="log-view">
+                        <!-- ログメッセージが動的に追加されます -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // アプリケーション状態
+        const AppState = {
+            files: [],
+            images: [],
+            basket: [],
+            selectedImages: new Set(),
+            selectedBasketIndices: new Set(),
+            labelPresets: {
+                1: "全景",
+                2: "接写",
+                3: "内部",
+                4: "測定",
+                5: "詳細",
+                6: "外観"
+            },
+            previewData: []
+        };
+
+        // ログ出力
+        function log(message, level = 'info') {
+            const logView = document.getElementById('logView');
+            const logMessage = document.createElement('div');
+            logMessage.className = `log-message ${level}`;
+
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = level === 'error' ? '[ERROR]' : level === 'warning' ? '[WARN]' : '[INFO]';
+
+            logMessage.textContent = `${timestamp} ${prefix} ${message}`;
+            logView.appendChild(logMessage);
+
+            // 自動スクロール
+            logView.scrollTop = logView.scrollHeight;
+        }
+
+        // EXIF情報を取得
+        function getExifDate(file) {
+            return new Promise((resolve) => {
+                EXIF.getData(file, function() {
+                    const dateTime = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime");
+                    if (dateTime) {
+                        // EXIF日時フォーマット: "YYYY:MM:DD HH:MM:SS"
+                        const parts = dateTime.split(' ');
+                        const dateParts = parts[0].split(':');
+                        const timeParts = parts[1].split(':');
+                        const date = new Date(
+                            parseInt(dateParts[0]),
+                            parseInt(dateParts[1]) - 1,
+                            parseInt(dateParts[2]),
+                            parseInt(timeParts[0]),
+                            parseInt(timeParts[1]),
+                            parseInt(timeParts[2])
+                        );
+                        resolve(date);
+                    } else {
+                        resolve(file.lastModifiedDate || new Date(file.lastModified));
+                    }
+                });
+            });
+        }
+
+        // フォルダを開く
+        document.getElementById('openFolderBtn').addEventListener('click', () => {
+            document.getElementById('folderInput').click();
+        });
+
+        document.getElementById('folderInput').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+
+            // 画像ファイルのみフィルタ
+            const imageFiles = files.filter(file =>
+                file.type.startsWith('image/')
+            );
+
+            if (imageFiles.length === 0) {
+                log('画像ファイルが見つかりませんでした', 'warning');
+                return;
+            }
+
+            AppState.files = imageFiles;
+            AppState.images = [];
+
+            // フォルダパス表示
+            const folderPath = imageFiles[0].webkitRelativePath.split('/')[0];
+            document.getElementById('folderPath').textContent = folderPath;
+
+            log(`${imageFiles.length}個の画像ファイルを検出`);
+
+            // サムネイル生成（EXIF情報含む）
+            for (const file of imageFiles) {
+                const datetime = await getExifDate(file);
+
+                AppState.images.push({
+                    file: file,
+                    name: file.name,
+                    path: file.webkitRelativePath,
+                    datetime: datetime,
+                    size: file.size
+                });
+            }
+
+            // 初期ソート（撮影日時昇順）
+            sortImages('exif_asc');
+
+            log('画像の読み込みが完了しました');
+        });
+
+        // サムネイル表示
+        function renderThumbnails() {
+            const grid = document.getElementById('thumbnailGrid');
+            grid.innerHTML = '';
+
+            if (AppState.images.length === 0) {
+                grid.innerHTML = '<div class="loading">画像がありません</div>';
+                return;
+            }
+
+            AppState.images.forEach((image, index) => {
+                const item = document.createElement('div');
+                item.className = 'thumbnail-item';
+                item.dataset.index = index;
+
+                // 選択状態を反映
+                if (AppState.selectedImages.has(image.path)) {
+                    item.classList.add('selected');
+                }
+
+                // サムネイル画像
+                const img = document.createElement('img');
+                img.className = 'thumbnail-image';
+                img.alt = image.name;
+
+                // FileReader でサムネイル生成
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(image.file);
+
+                // ファイル名
+                const name = document.createElement('div');
+                name.className = 'thumbnail-name';
+                name.textContent = image.name;
+
+                // 撮影日時
+                const datetime = document.createElement('div');
+                datetime.className = 'thumbnail-datetime';
+                datetime.textContent = image.datetime ? image.datetime.toLocaleString('ja-JP') : '';
+
+                item.appendChild(img);
+                item.appendChild(name);
+                item.appendChild(datetime);
+
+                // クリックイベント
+                item.addEventListener('click', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        toggleImageSelection(image.path, item);
+                    } else {
+                        AppState.selectedImages.clear();
+                        document.querySelectorAll('.thumbnail-item').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        AppState.selectedImages.add(image.path);
+                        item.classList.add('selected');
+                    }
+                });
+
+                grid.appendChild(item);
+            });
+        }
+
+        function toggleImageSelection(path, element) {
+            if (AppState.selectedImages.has(path)) {
+                AppState.selectedImages.delete(path);
+                element.classList.remove('selected');
+            } else {
+                AppState.selectedImages.add(path);
+                element.classList.add('selected');
+            }
+        }
+
+        // ソート
+        document.getElementById('sortMode').addEventListener('change', (e) => {
+            sortImages(e.target.value);
+        });
+
+        function sortImages(mode) {
+            if (mode === 'name') {
+                AppState.images.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (mode === 'exif_asc') {
+                AppState.images.sort((a, b) => a.datetime - b.datetime);
+            } else if (mode === 'exif_desc') {
+                AppState.images.sort((a, b) => b.datetime - a.datetime);
+            }
+
+            renderThumbnails();
+            log(`画像を並び替えました: ${mode}`);
+        }
+
+        // バスケットに追加
+        document.getElementById('addToBasketBtn').addEventListener('click', () => {
+            if (AppState.selectedImages.size === 0) {
+                log('画像が選択されていません', 'warning');
+                return;
+            }
+
+            let addedCount = 0;
+            AppState.selectedImages.forEach(path => {
+                const image = AppState.images.find(img => img.path === path);
+                if (image && !AppState.basket.find(item => item.path === path)) {
+                    AppState.basket.push({
+                        path: image.path,
+                        name: image.name,
+                        file: image.file,
+                        label: '全景',
+                        group: 1
+                    });
+                    addedCount++;
+                }
+            });
+
+            renderBasket();
+            log(`${addedCount}個の画像をバスケットに追加しました`);
+        });
+
+        // バスケット表示
+        function renderBasket() {
+            const basketList = document.getElementById('basketList');
+            basketList.innerHTML = '';
+
+            if (AppState.basket.length === 0) {
+                basketList.innerHTML = '<div class="loading">バスケットは空です</div>';
+                updateBasketCount();
+                return;
+            }
+
+            AppState.basket.forEach((item, index) => {
+                const basketItem = document.createElement('div');
+                basketItem.className = 'basket-item';
+                basketItem.dataset.index = index;
+
+                if (AppState.selectedBasketIndices.has(index)) {
+                    basketItem.classList.add('selected');
+                }
+
+                const text = document.createElement('div');
+                text.className = 'basket-item-text';
+                text.textContent = `${index + 1}. ${item.name} [${item.label}]`;
+
+                basketItem.appendChild(text);
+
+                basketItem.addEventListener('click', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        toggleBasketSelection(index, basketItem);
+                    } else {
+                        AppState.selectedBasketIndices.clear();
+                        document.querySelectorAll('.basket-item').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        AppState.selectedBasketIndices.add(index);
+                        basketItem.classList.add('selected');
+                    }
+                });
+
+                basketList.appendChild(basketItem);
+            });
+
+            updateBasketCount();
+        }
+
+        function toggleBasketSelection(index, element) {
+            if (AppState.selectedBasketIndices.has(index)) {
+                AppState.selectedBasketIndices.delete(index);
+                element.classList.remove('selected');
+            } else {
+                AppState.selectedBasketIndices.add(index);
+                element.classList.add('selected');
+            }
+        }
+
+        function updateBasketCount() {
+            document.getElementById('countLabel').textContent = `選択数: ${AppState.basket.length}`;
+        }
+
+        // バスケット操作
+        document.getElementById('moveUpBtn').addEventListener('click', () => {
+            if (AppState.selectedBasketIndices.size !== 1) {
+                log('1つのアイテムを選択してください', 'warning');
+                return;
+            }
+
+            const index = Array.from(AppState.selectedBasketIndices)[0];
+            if (index === 0) return;
+
+            [AppState.basket[index], AppState.basket[index - 1]] = [AppState.basket[index - 1], AppState.basket[index]];
+
+            AppState.selectedBasketIndices.clear();
+            AppState.selectedBasketIndices.add(index - 1);
+
+            renderBasket();
+        });
+
+        document.getElementById('moveDownBtn').addEventListener('click', () => {
+            if (AppState.selectedBasketIndices.size !== 1) {
+                log('1つのアイテムを選択してください', 'warning');
+                return;
+            }
+
+            const index = Array.from(AppState.selectedBasketIndices)[0];
+            if (index === AppState.basket.length - 1) return;
+
+            [AppState.basket[index], AppState.basket[index + 1]] = [AppState.basket[index + 1], AppState.basket[index]];
+
+            AppState.selectedBasketIndices.clear();
+            AppState.selectedBasketIndices.add(index + 1);
+
+            renderBasket();
+        });
+
+        document.getElementById('removeBtn').addEventListener('click', () => {
+            if (AppState.selectedBasketIndices.size === 0) {
+                log('削除するアイテムを選択してください', 'warning');
+                return;
+            }
+
+            const index = Array.from(AppState.selectedBasketIndices)[0];
+            AppState.basket.splice(index, 1);
+            AppState.selectedBasketIndices.clear();
+            renderBasket();
+            log('アイテムを削除しました');
+        });
+
+        document.getElementById('clearBasketBtn').addEventListener('click', () => {
+            if (AppState.basket.length === 0) return;
+
+            if (!confirm('バスケットをすべてクリアしますか？')) return;
+
+            AppState.basket = [];
+            AppState.selectedBasketIndices.clear();
+            renderBasket();
+            clearPreview();
+            log('バスケットをクリアしました');
+        });
+
+        // ラベル適用
+        document.getElementById('applyLabelBtn').addEventListener('click', () => {
+            const label = document.getElementById('labelInput').value.trim() || '全景';
+            applyLabelToSelected(label);
+        });
+
+        document.getElementById('applyPresetBtn').addEventListener('click', () => {
+            const label = document.getElementById('presetCombo').value;
+            applyLabelToSelected(label);
+        });
+
+        function applyLabelToSelected(label) {
+            let count = 0;
+
+            if (AppState.selectedBasketIndices.size > 0) {
+                AppState.selectedBasketIndices.forEach(index => {
+                    AppState.basket[index].label = label;
+                    count++;
+                });
+            } else if (AppState.selectedImages.size > 0) {
+                AppState.selectedImages.forEach(path => {
+                    const item = AppState.basket.find(item => item.path === path);
+                    if (item) {
+                        item.label = label;
+                        count++;
+                    }
+                });
+            }
+
+            if (count > 0) {
+                renderBasket();
+                log(`ラベル '${label}' を ${count} 個のアイテムに適用しました`);
+
+                AppState.selectedImages.clear();
+                document.querySelectorAll('.thumbnail-item').forEach(el => {
+                    el.classList.remove('selected');
+                });
+            } else {
+                log('ラベルを適用するアイテムを選択してください', 'warning');
+            }
+        }
+
+        // プレビュー生成
+        document.getElementById('previewBtn').addEventListener('click', () => {
+            if (AppState.basket.length === 0) {
+                log('バスケットが空です', 'warning');
+                return;
+            }
+
+            const template = document.getElementById('templateInput').value.trim();
+            if (!template) {
+                log('テンプレートを入力してください', 'warning');
+                return;
+            }
+
+            AppState.previewData = [];
+
+            AppState.basket.forEach((item, index) => {
+                const oldName = item.name;
+                const newName = applyTemplate(template, {
+                    group: item.group,
+                    label: item.label,
+                    seq: index + 1,
+                    extension: getFileExtension(oldName)
+                });
+
+                AppState.previewData.push({
+                    oldName: oldName,
+                    newName: newName,
+                    oldPath: item.path,
+                    newPath: item.path.replace(oldName, newName)
+                });
+            });
+
+            renderPreview();
+            log(`${AppState.previewData.length}件のプレビューを生成しました`);
+        });
+
+        function applyTemplate(template, data) {
+            let result = template;
+
+            result = result.replace('{group}', data.group);
+            result = result.replace('{label}', data.label);
+
+            // {seq:NNN} 形式の連番
+            const seqPattern = /\{seq:(\d+)\}/;
+            const match = result.match(seqPattern);
+            if (match) {
+                const width = parseInt(match[1]);
+                const seqStr = String(data.seq).padStart(width, '0');
+                result = result.replace(seqPattern, seqStr);
+            } else {
+                result = result.replace('{seq}', data.seq);
+            }
+
+            if (!result.endsWith(data.extension)) {
+                result += data.extension;
+            }
+
+            return result;
+        }
+
+        function getFileExtension(filename) {
+            const lastDot = filename.lastIndexOf('.');
+            return lastDot !== -1 ? filename.substring(lastDot) : '';
+        }
+
+        function renderPreview() {
+            const tbody = document.querySelector('#previewTable tbody');
+            tbody.innerHTML = '';
+
+            AppState.previewData.forEach(row => {
+                const tr = document.createElement('tr');
+
+                const oldNameTd = document.createElement('td');
+                oldNameTd.textContent = row.oldName;
+
+                const newNameTd = document.createElement('td');
+                newNameTd.textContent = row.newName;
+
+                if (row.oldName !== row.newName) {
+                    newNameTd.classList.add('success');
+                }
+
+                tr.appendChild(oldNameTd);
+                tr.appendChild(newNameTd);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearPreview() {
+            const tbody = document.querySelector('#previewTable tbody');
+            tbody.innerHTML = '';
+            AppState.previewData = [];
+        }
+
+        // リネームスクリプト生成（実行ボタン）
+        document.getElementById('executeBtn').addEventListener('click', () => {
+            if (AppState.previewData.length === 0) {
+                log('プレビューを先に生成してください', 'warning');
+                return;
+            }
+
+            // Windows用バッチファイル
+            let batScript = '@echo off\n';
+            batScript += 'REM フォトブック管理 - 自動生成リネームスクリプト\n';
+            batScript += 'echo リネームを実行します...\n\n';
+
+            AppState.previewData.forEach(row => {
+                if (row.oldName !== row.newName) {
+                    batScript += `ren "${row.oldName}" "${row.newName}"\n`;
+                }
+            });
+
+            batScript += '\necho リネーム完了\npause\n';
+
+            // Mac/Linux用シェルスクリプト
+            let shScript = '#!/bin/bash\n';
+            shScript += '# フォトブック管理 - 自動生成リネームスクリプト\n';
+            shScript += 'echo "リネームを実行します..."\n\n';
+
+            AppState.previewData.forEach(row => {
+                if (row.oldName !== row.newName) {
+                    shScript += `mv "${row.oldName}" "${row.newName}"\n`;
+                }
+            });
+
+            shScript += '\necho "リネーム完了"\n';
+
+            // バッチファイルをダウンロード
+            downloadFile(batScript, 'rename.bat', 'text/plain');
+            downloadFile(shScript, 'rename.sh', 'text/plain');
+
+            log('リネームスクリプトを生成しました（rename.bat, rename.sh）');
+            alert('リネームスクリプトをダウンロードしました。\n画像フォルダ内でスクリプトを実行してください。');
+        });
+
+        // JSON出力
+        document.getElementById('exportJsonBtn').addEventListener('click', () => {
+            if (AppState.basket.length === 0) {
+                log('バスケットが空です', 'warning');
+                alert('バスケットにアイテムがありません。\n画像を選択してからJSON出力してください。');
+                return;
+            }
+
+            const exportData = {
+                export_date: new Date().toISOString(),
+                total_count: AppState.basket.length,
+                items: []
+            };
+
+            AppState.basket.forEach((item, index) => {
+                exportData.items.push({
+                    order: index + 1,
+                    file_name: item.name,
+                    file_path: item.path,
+                    label: item.label,
+                    group: item.group
+                });
+            });
+
+            const filename = `photobook_export_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+            downloadFile(JSON.stringify(exportData, null, 2), filename, 'application/json');
+
+            log(`JSON出力完了: ${filename} (${exportData.total_count}件)`);
+            alert(`${exportData.total_count}件のアイテムをJSON出力しました。\n${filename}`);
+        });
+
+        // ファイルダウンロード
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type: type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // キーボードショートカット
+        document.addEventListener('keydown', (e) => {
+            // 数字キー 1-9 でラベル適用
+            if (e.key >= '1' && e.key <= '9') {
+                const number = parseInt(e.key);
+                if (AppState.labelPresets[number]) {
+                    e.preventDefault();
+                    applyLabelToSelected(AppState.labelPresets[number]);
+                }
+            }
+
+            // Delete キーで選択クリア
+            if (e.key === 'Delete') {
+                e.preventDefault();
+                AppState.selectedImages.clear();
+                document.querySelectorAll('.thumbnail-item').forEach(el => {
+                    el.classList.remove('selected');
+                });
+                log('画像の選択をクリアしました');
+            }
+        });
+
+        // 初期化
+        log('アプリケーション起動（HTML版）');
+        log('フォルダを開くボタンをクリックして開始してください');
+    </script>
+</body>
+</html>

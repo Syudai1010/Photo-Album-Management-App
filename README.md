@@ -26,10 +26,11 @@
 - PySide6ベースのネイティブGUIアプリケーション
 - 起動: `python main.py`
 
-### 🌐 Web版（NEW!）
-- ブラウザで動作するWebアプリケーション
-- デスクトップ版と**完全に同じ機能**
-- 起動: `start_web.bat` (Windows) / `start_web.sh` (Mac/Linux)
+### 🌐 HTML版（NEW!）
+- **ダブルクリックで開ける**スタンドアロンHTMLアプリ
+- サーバー不要、インストール不要
+- リネームはスクリプト(.bat/.sh)を生成して実行
+- 起動: `web/index.html` をダブルクリック
 - 詳細は [web/README.md](web/README.md) を参照
 
 ---
@@ -136,28 +137,19 @@ Photo-Album-Management-App/
 ├── requirements.txt           # Python依存関係
 ├── requirements-heic.txt      # HEIC対応（オプション）
 ├── README.md                  # このファイル
-├── start_web.bat              # Web版起動スクリプト（Windows）
-├── start_web.sh               # Web版起動スクリプト（Mac/Linux）
 ├── widgets/                   # UIウィジェット（デスクトップ版）
 │   ├── thumbnail_grid.py      # サムネイルグリッド
 │   ├── selection_bucket.py    # 選択バスケット
 │   └── label_preset_dialog.py # ラベル設定ダイアログ
-├── services/                  # ビジネスロジック（共通）
+├── services/                  # ビジネスロジック（デスクトップ版）
 │   ├── thumbnail_cache.py     # サムネイルキャッシュ
 │   ├── exif.py                # EXIF情報読み取り
 │   └── renamer.py             # リネーム処理
-├── utils/                     # ユーティリティ（共通）
+├── utils/                     # ユーティリティ（デスクトップ版）
 │   └── pathsafe.py            # パス操作ヘルパー
-└── web/                       # Web版（NEW!）
-    ├── server.py              # Flaskサーバー
-    ├── requirements-web.txt   # Web版の依存関係
-    ├── README.md              # Web版のREADME
-    └── static/
-        ├── index.html         # メインHTML
-        ├── css/
-        │   └── style.css      # スタイルシート
-        └── js/
-            └── app.js         # JavaScriptアプリケーション
+└── web/                       # HTML版（NEW!）
+    ├── index.html             # スタンドアロンHTMLアプリ（すべて内包）
+    └── README.md              # HTML版のREADME
 ```
 
 ## トラブルシューティング
