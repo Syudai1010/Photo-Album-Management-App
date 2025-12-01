@@ -576,6 +576,14 @@
                     <button id="applyLabelBtn" class="btn btn-sm btn-primary">適用</button>
                 </div>
 
+                <!-- グループ番号一括変更 -->
+                <div class="label-apply-section">
+                    <label>グループ番号変更:</label>
+                    <input type="number" id="groupInput" placeholder="1" min="1" value="1">
+                    <button id="applyGroupBtn" class="btn btn-sm btn-primary">適用</button>
+                </div>
+                <div class="help-text">バスケット内でCtrl+クリックで複数選択、Shift+クリックで範囲選択が可能です</div>
+
                 <!-- カウント表示 -->
                 <div class="count-label" id="countLabel">選択数: 0</div>
             </div>
@@ -901,7 +909,7 @@
 
                 const text = document.createElement('div');
                 text.className = 'basket-item-text';
-                text.textContent = `${index + 1}. ${item.name} [${item.label}]`;
+                text.textContent = `${index + 1}. ${item.name} [G${item.group}] [${item.label}]`;
 
                 basketItem.appendChild(text);
 
@@ -1063,6 +1071,43 @@
                 });
             } else {
                 log('ラベルを適用するアイテムを選択してください', 'warning');
+            }
+        }
+
+        // グループ番号適用
+        document.getElementById('applyGroupBtn').addEventListener('click', () => {
+            const group = parseInt(document.getElementById('groupInput').value) || 1;
+            applyGroupToSelected(group);
+        });
+
+        function applyGroupToSelected(group) {
+            let count = 0;
+
+            if (AppState.selectedBasketIndices.size > 0) {
+                AppState.selectedBasketIndices.forEach(index => {
+                    AppState.basket[index].group = group;
+                    count++;
+                });
+            } else if (AppState.selectedImages.size > 0) {
+                AppState.selectedImages.forEach(path => {
+                    const item = AppState.basket.find(item => item.path === path);
+                    if (item) {
+                        item.group = group;
+                        count++;
+                    }
+                });
+            }
+
+            if (count > 0) {
+                renderBasket();
+                log(`グループ番号 '${group}' を ${count} 個のアイテムに適用しました`);
+
+                AppState.selectedImages.clear();
+                document.querySelectorAll('.thumbnail-item').forEach(el => {
+                    el.classList.remove('selected');
+                });
+            } else {
+                log('グループ番号を適用するアイテムを選択してください', 'warning');
             }
         }
 
