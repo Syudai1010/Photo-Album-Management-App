@@ -591,6 +591,10 @@
                     <label>テンプレート:</label>
                     <input type="text" id="templateInput" value="V-{seq:1}_{label}" class="template-input">
                     <div class="help-text">変数: {group}=グループ番号, {label}=ラベル, {seq:003}=連番（ゼロ埋め3桁）</div>
+
+                    <label style="margin-top: 10px;">連番開始番号:</label>
+                    <input type="number" id="seqStartInput" value="1" min="1" class="template-input" style="width: 150px;">
+                    <div class="help-text">途中から開始する場合に番号を変更してください（例：51）</div>
                 </div>
 
                 <!-- ラベルプリセット -->
@@ -612,7 +616,7 @@
                 <!-- アクションボタン -->
                 <div class="action-buttons">
                     <button id="previewBtn" class="btn btn-success">👁️ プレビュー</button>
-                    <button id="executeBtn" class="btn btn-danger">⚡ スクリプト生成</button>
+                    <button id="executeBtn" class="btn btn-danger">⚡ リネーム実行</button>
                 </div>
 
                 <!-- フォルダからJSON生成ボタン -->
@@ -1075,6 +1079,9 @@
                 return;
             }
 
+            // 連番開始番号を取得
+            const seqStart = parseInt(document.getElementById('seqStartInput').value) || 1;
+
             AppState.previewData = [];
 
             AppState.basket.forEach((item, index) => {
@@ -1082,7 +1089,7 @@
                 const newName = applyTemplate(template, {
                     group: item.group,
                     label: item.label,
-                    seq: index + 1,
+                    seq: seqStart + index,  // 開始番号を考慮
                     extension: getFileExtension(oldName)
                 });
 
@@ -1090,12 +1097,13 @@
                     oldName: oldName,
                     newName: newName,
                     oldPath: item.path,
-                    newPath: item.path.replace(oldName, newName)
+                    newPath: item.path.replace(oldName, newName),
+                    file: item.file  // Fileオブジェクトも保持
                 });
             });
 
             renderPreview();
-            log(`${AppState.previewData.length}件のプレビューを生成しました`);
+            log(`${AppState.previewData.length}件のプレビューを生成しました（開始番号: ${seqStart}）`);
         });
 
         function applyTemplate(template, data) {
@@ -1156,45 +1164,78 @@
             AppState.previewData = [];
         }
 
-        // リネームスクリプト生成（実行ボタン）
-        document.getElementById('executeBtn').addEventListener('click', () => {
+        // リネーム実行（File System Access API使用）
+        document.getElementById('executeBtn').addEventListener('click', async () => {
             if (AppState.previewData.length === 0) {
                 log('プレビューを先に生成してください', 'warning');
+                alert('先にプレビューを生成してください。');
                 return;
             }
 
-            // Windows用バッチファイル
-            let batScript = '@echo off\n';
-            batScript += 'REM フォトブック管理 - 自動生成リネームスクリプト\n';
-            batScript += 'echo リネームを実行します...\n\n';
+            // File System Access APIの対応チェック
+            if (!('showDirectoryPicker' in window)) {
+                log('お使いのブラウザはフォルダ保存に対応していません', 'error');
+                alert('このブラウザはフォルダへの直接保存に対応していません。\nChrome、Edge、Opera等の最新版をご使用ください。');
+                return;
+            }
 
-            AppState.previewData.forEach(row => {
-                if (row.oldName !== row.newName) {
-                    batScript += `ren "${row.oldName}" "${row.newName}"\n`;
+            try {
+                // 保存先フォルダを選択
+                log('保存先フォルダを選択してください...');
+                const dirHandle = await window.showDirectoryPicker({
+                    mode: 'readwrite'
+                });
+
+                log(`保存先フォルダ: ${dirHandle.name}`);
+
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                // 各ファイルをリネームして保存
+                for (const item of AppState.previewData) {
+                    try {
+                        // 新しいファイル名でファイルを作成
+                        const fileHandle = await dirHandle.getFileHandle(item.newName, { create: true });
+                        const writable = await fileHandle.createWritable();
+
+                        // 元のFileオブジェクトを書き込み
+                        await writable.write(item.file);
+                        await writable.close();
+
+                        successCount++;
+                        log(`保存成功: ${item.newName}`);
+                    } catch (err) {
+                        errorCount++;
+                        const errMsg = `${item.oldName} → ${item.newName}: ${err.message}`;
+                        errors.push(errMsg);
+                        log(errMsg, 'error');
+                    }
                 }
-            });
 
-            batScript += '\necho リネーム完了\npause\n';
+                // 結果を表示
+                log(`リネーム完了: 成功 ${successCount}件, 失敗 ${errorCount}件`);
 
-            // Mac/Linux用シェルスクリプト
-            let shScript = '#!/bin/bash\n';
-            shScript += '# フォトブック管理 - 自動生成リネームスクリプト\n';
-            shScript += 'echo "リネームを実行します..."\n\n';
-
-            AppState.previewData.forEach(row => {
-                if (row.oldName !== row.newName) {
-                    shScript += `mv "${row.oldName}" "${row.newName}"\n`;
+                if (errorCount === 0) {
+                    alert(`✅ リネーム完了！\n\n${successCount}個のファイルを保存しました。\n保存先: ${dirHandle.name}`);
+                } else {
+                    alert(`⚠️ リネーム完了（一部失敗）\n\n成功: ${successCount}件\n失敗: ${errorCount}件\n\n詳細はログを確認してください。`);
                 }
-            });
 
-            shScript += '\necho "リネーム完了"\n';
+                // バスケットとプレビューをクリア
+                AppState.basket = [];
+                AppState.selectedBasketIndices.clear();
+                renderBasket();
+                clearPreview();
 
-            // バッチファイルをダウンロード
-            downloadFile(batScript, 'rename.bat', 'text/plain');
-            downloadFile(shScript, 'rename.sh', 'text/plain');
-
-            log('リネームスクリプトを生成しました（rename.bat, rename.sh）');
-            alert('リネームスクリプトをダウンロードしました。\n画像フォルダ内でスクリプトを実行してください。');
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    log('フォルダ選択がキャンセルされました', 'warning');
+                } else {
+                    log(`エラー: ${err.message}`, 'error');
+                    alert(`エラーが発生しました:\n${err.message}`);
+                }
+            }
         });
 
 
